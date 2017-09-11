@@ -1,0 +1,18 @@
+<html>
+<head>
+<body>
+</body>
+  <script>
+    if (window.location.hash) {
+      var hash = window.location.hash.substring(1);
+
+      // re-submit the data via a form (POST)
+      var form = document.createElement('form');
+      form.method = 'POST';
+      form.action = '/salesforce/oauth/receive_token?' + hash;
+      document.body.appendChild(form);
+      form.submit()
+    }
+  </script>
+</head>
+</html>
