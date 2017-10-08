@@ -9,7 +9,7 @@
       // re-submit the data via a form (POST)
       var form = document.createElement('form');
       form.method = 'POST';
-      form.action = '/salesforce/oauth/receive_token?' + hash;
+      form.action = '{{.CallbackURL}}?' + hash;
       document.body.appendChild(form);
       form.submit()
     }

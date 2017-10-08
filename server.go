@@ -2,39 +2,42 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net/http"
-	"os"
-	"time"
 
-	"github.com/gorilla/handlers"
-	"github.com/gorilla/mux"
+	"github.com/julienschmidt/httprouter"
+	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 )
 
 func main() {
-	// Hard-coded port since it's defined in the Salesforce connected-app as part of the
-	// callback URL
-	port := 10000
+	viper.SetConfigName("settings")
+	viper.AddConfigPath(".")
 
-	r := mux.NewRouter()
-
-	// Authentication handlers
-	r.HandleFunc("/salesforce/login", indexPageHandler)
-	r.HandleFunc("/salesforce/oauth/receive_token", receiveOAuthTokenHandler)
-
-	// API Definitions
-	r.HandleFunc("/api/v1/salesforce/reports/run/{id}", runReportAPI).Methods("GET")
-	r.HandleFunc("/api/v1/salesforce/accounts", getAccountsAPI).Methods("GET")
-
-	loggedRouter := handlers.LoggingHandler(os.Stdout, r)
-
-	log.Printf("Starting server on :%d", port)
-	srv := &http.Server{
-		Handler:      loggedRouter,
-		Addr:         fmt.Sprintf(":%d", port),
-		WriteTimeout: 30 * time.Second,
-		ReadTimeout:  30 * time.Second,
+	err := viper.ReadInConfig()
+	if err != nil {
+		log.Fatalf("Unable to read config file: %s", err)
 	}
 
-	log.Fatal(srv.ListenAndServe())
+	port := viper.GetInt("port")
+
+	s, err := NewSalesforce(
+		viper.GetString("consumer_key"),
+		viper.GetString("consumer_secret"),
+		viper.GetString("redirect_url"),
+		viper.GetString("login_base_url"),
+		viper.GetString("refresh_token"),
+	)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	router := httprouter.New()
+	router.GET("/token/new", s.loginHandler)
+	router.GET("/token/receive", s.receiveTokenHandler)
+	router.POST("/token/parse", s.parseTokenHandler)
+	router.GET("/token/refresh", s.refreshTokenHandler)
+
+	log.WithFields(log.Fields{"port": port}).Println("Starting server")
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), router))
 }
